@@ -57,28 +57,28 @@ func (v *Listener) Init() (err error) {
 	nmAbi, err = abi.JSON(strings.NewReader(node_manager_abi.INodeManagerABI))
 	client, err := ethclient.Dial(v.conf.ZionConfig.RestURL)
 	if err != nil {
-		return
+		return fmt.Errorf("ethclient.Dial error: %s", err)
 	}
 	v.client = client
 
 	contract, err := node_manager_abi.NewINodeManager(utils.NodeManagerContractAddress, v.client)
 	if err != nil {
-		return
+		return fmt.Errorf("node_manager_abi.NewINodeManager error: %s", err)
 	}
 	v.contract = contract
 
 	v.chainId, err = client.ChainID(context.Background())
 	if err != nil {
-		return
+		return fmt.Errorf("client.ChainID error: %s", err)
 	}
 
 	// init epoch info
-	err = v.db.SaveEpochInfo(&models.EpochInfo{ID: 1, Validators: new(models.SQLStringArray)})
+	err = v.db.SaveEpochInfo(&models.EpochInfo{ID: 1, Validators: make([]string, 0)})
 	if err != nil {
-		return
+		return fmt.Errorf("v.db.SaveEpochInfo error: %s", err)
 	}
 
-	return
+	return nil
 }
 
 func (v *Listener) Listen(ctx context.Context) {
@@ -248,7 +248,7 @@ func (v *Listener) ScanAndExecBlock(height uint64) error {
 
 			err = v.db.SaveEpochInfo(&models.EpochInfo{
 				ID:         ID,
-				Validators: &validators,
+				Validators: validators,
 			})
 			if err != nil {
 				return fmt.Errorf("ScanAndExecBlock, v.db.SaveEpochInfo error: %s", err)
@@ -277,13 +277,13 @@ func (v *Listener) CalcRewards(height uint64) error {
 	if err != nil {
 		return fmt.Errorf("CalcReward, v.db.LoadTotalGas error: %s", err)
 	}
-	totalRewards := new(big.Int).Add(totalGas.TotalGas.Int, params.ZNT1)
+	totalRewards := new(big.Int).Add(&totalGas.TotalGas.Int, params.ZNT1)
 	// get validators in this block
 	epochInfo, err := v.db.LoadLatestEpochInfo()
 	if err != nil {
 		return fmt.Errorf("CalcReward, v.db.LoadLatestEpochInfo error: %s", err)
 	}
-	validatorList := *epochInfo.Validators
+	validatorList := epochInfo.Validators
 	validatorRewards := new(big.Int).Div(totalRewards, new(big.Int).SetUint64(uint64(len(validatorList))))
 	if err != nil {
 		return fmt.Errorf("CalcReward, Div validatorRewards error: %v", err)
@@ -294,9 +294,9 @@ func (v *Listener) CalcRewards(height uint64) error {
 		if err != nil {
 			return fmt.Errorf("CalcReward, v.db.LoadValidator error: %v", err)
 		}
-		commission := new(big.Int).Div(new(big.Int).Mul(validatorRewards, validator.Commission.Int), node_manager.PercentDecimal)
+		commission := new(big.Int).Div(new(big.Int).Mul(validatorRewards, &validator.Commission.Int), node_manager.PercentDecimal)
 		stakeRewards := new(big.Int).Sub(validatorRewards, commission)
-		rewardsPerToken := new(big.Int).Div(new(big.Int).Mul(stakeRewards, node_manager.TokenDecimal), validator.TotalStake.Int)
+		rewardsPerToken := new(big.Int).Div(new(big.Int).Mul(stakeRewards, node_manager.TokenDecimal), &validator.TotalStake.Int)
 		allStakeAddress, err := v.db.LoadAllStakeAddress(consensusAddress)
 		if err != nil {
 			return fmt.Errorf("CalcReward, v.db.LoadAllStakeAddress error: %v", err)
@@ -306,7 +306,7 @@ func (v *Listener) CalcRewards(height uint64) error {
 			if err != nil {
 				return fmt.Errorf("CalcReward, v.db.LoadStakeInfo error: %v", err)
 			}
-			rewards := new(big.Int).Div(new(big.Int).Mul(stakeInfo.Amount.Int, rewardsPerToken), node_manager.TokenDecimal)
+			rewards := new(big.Int).Div(new(big.Int).Mul(&stakeInfo.Amount.Int, rewardsPerToken), node_manager.TokenDecimal)
 			if s == validator.StakeAddress {
 				rewards = new(big.Int).Add(rewards, commission)
 			}

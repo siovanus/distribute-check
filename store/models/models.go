@@ -14,22 +14,22 @@ type TrackHeight struct {
 }
 
 type EpochInfo struct {
-	ID         uint64 `gorm:"primary_key"`
-	Validators *SQLStringArray
+	ID         uint64         `gorm:"primary_key"`
+	Validators SQLStringArray `gorm:"type:varchar(4096)"`
 }
 
 type Validator struct {
 	StakeAddress     string
 	ConsensusAddress string `gorm:"primary_key"`
-	Commission       *BigInt
-	TotalStake       *BigInt
-	SelfStake        *BigInt
+	Commission       *BigInt `gorm:"type:varchar(64)"`
+	TotalStake       *BigInt `gorm:"type:varchar(64)"`
+	SelfStake        *BigInt `gorm:"type:varchar(64)"`
 }
 
 type StakeInfo struct {
 	StakeAddress  string `gorm:"primary_key"`
 	ConsensusAddr string `gorm:"primary_key"`
-	Amount        *BigInt
+	Amount        *BigInt `gorm:"type:varchar(64)"`
 }
 
 type DoneTx struct {
@@ -39,13 +39,13 @@ type DoneTx struct {
 
 type TotalGas struct {
 	Height   uint64 `gorm:"primary_key"`
-	TotalGas *BigInt
+	TotalGas *BigInt `gorm:"type:varchar(64)"`
 }
 
 type Rewards struct {
 	Address string `gorm:"primary_key"`
 	Height  uint64 `gorm:"primary_key"`
-	Amount  *BigInt
+	Amount  *BigInt `gorm:"type:varchar(64)"`
 }
 
 // SQLStringArray is a string array stored in the database as comma separated values.
@@ -88,11 +88,11 @@ func (arr SQLStringArray) Value() (driver.Value, error) {
 }
 
 type BigInt struct {
-	*big.Int
+	big.Int
 }
 
 func NewBigInt(value *big.Int) *BigInt {
-	return &BigInt{Int: value}
+	return &BigInt{Int: *value}
 }
 
 func (bigInt *BigInt) Value() (driver.Value, error) {
@@ -115,6 +115,6 @@ func (bigInt *BigInt) Scan(v interface{}) error {
 	if !ok {
 		return fmt.Errorf("not a valid big integer: %s", value)
 	}
-	bigInt.Int = data
+	bigInt.Int = *data
 	return nil
 }

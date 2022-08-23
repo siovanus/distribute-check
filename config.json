@@ -1,0 +1,8 @@
+{
+  "ZionConfig":
+  {
+    "RestURL": "http://43.153.176.53:5000"
+  },
+  "DatabaseURL": "postgresql://postgres:zmh630323@localhost:5432/postgres?sslmode=disable",
+  "Port": 10337
+}

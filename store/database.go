@@ -3,15 +3,11 @@ package store
 
 import (
 	"fmt"
-	"github.com/jinzhu/gorm"
-	_ "github.com/jinzhu/gorm/dialects/postgres"
 	"github.com/polynetwork/distribute-check/store/migrations"
 	"github.com/polynetwork/distribute-check/store/models"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 	"math/big"
-)
-
-const (
-	sqlDialect = "postgres"
 )
 
 // Client holds a connection to the database.
@@ -22,7 +18,7 @@ type Client struct {
 // ConnectToDB attempts to connect to the database URI provided,
 // and returns a new Client instance if successful.
 func ConnectToDb(uri string) (*Client, error) {
-	db, err := gorm.Open(sqlDialect, uri)
+	db, err := gorm.Open(postgres.Open(uri), &gorm.Config{})
 	if err != nil {
 		return nil, fmt.Errorf("unable to open %s for gorm DB: %+v", uri, err)
 	}
@@ -35,20 +31,15 @@ func ConnectToDb(uri string) (*Client, error) {
 	return store, nil
 }
 
-// Close will close the connection to the database.
-func (client Client) Close() error {
-	return client.db.Close()
-}
-
 func (client Client) LoadTrackHeight() (uint64, error) {
 	var trackHeight models.TrackHeight
-	err := client.db.Where(&models.TrackHeight{Name: "TrackHeight"}).FirstOrCreate(&trackHeight).Error
+	err := client.db.Where(&models.TrackHeight{Name: "height"}).FirstOrCreate(&trackHeight).Error
 	return trackHeight.Height, err
 }
 
 func (client Client) SaveTrackHeight(height uint64) error {
 	trackHeight := &models.TrackHeight{
-		Name:   "TrackHeight",
+		Name:   "height",
 		Height: height,
 	}
 	return client.db.Save(trackHeight).Error
@@ -69,9 +60,9 @@ func (client Client) AddValidatorStake(stakeAddress, consensusAddress string, am
 	if err != nil {
 		return fmt.Errorf("AddValidatorStake, client.LoadValidator error: %s", err)
 	}
-	validator.TotalStake = models.NewBigInt(new(big.Int).Add(validator.TotalStake.Int, amount))
+	validator.TotalStake = models.NewBigInt(new(big.Int).Add(&validator.TotalStake.Int, amount))
 	if validator.StakeAddress == stakeAddress {
-		validator.SelfStake = models.NewBigInt(new(big.Int).Add(validator.SelfStake.Int, amount))
+		validator.SelfStake = models.NewBigInt(new(big.Int).Add(&validator.SelfStake.Int, amount))
 	}
 	err = client.SaveValidator(validator)
 	if err != nil {
@@ -85,7 +76,7 @@ func (client Client) SubValidatorStake(consensusAddress string, amount *big.Int)
 	if err != nil {
 		return fmt.Errorf("SubValidatorStake, client.LoadValidator error: %s", err)
 	}
-	validator.TotalStake = models.NewBigInt(new(big.Int).Sub(validator.TotalStake.Int, amount))
+	validator.TotalStake = models.NewBigInt(new(big.Int).Sub(&validator.TotalStake.Int, amount))
 	err = client.SaveValidator(validator)
 	if err != nil {
 		return fmt.Errorf("SubValidatorStake, client.SaveValidator error: %s", err)
@@ -124,7 +115,7 @@ func (client Client) AddStakeInfo(stakeAddress, consensusAddress string, amount 
 	if err != nil {
 		return fmt.Errorf("AddStakeInfo, client.LoadStakeInfo error: %s", err)
 	}
-	stakeInfo.Amount = models.NewBigInt(new(big.Int).Add(stakeInfo.Amount.Int, amount))
+	stakeInfo.Amount = models.NewBigInt(new(big.Int).Add(&stakeInfo.Amount.Int, amount))
 	err = client.SaveStakeInfo(stakeInfo)
 	if err != nil {
 		return fmt.Errorf("AddStakeInfo, client.SaveStakeInfo error: %s", err)
@@ -137,7 +128,7 @@ func (client Client) SubStakeInfo(stakeAddress, consensusAddress string, amount 
 	if err != nil {
 		return fmt.Errorf("SubStakeInfo, client.LoadStakeInfo error: %s", err)
 	}
-	stakeInfo.Amount = models.NewBigInt(new(big.Int).Sub(stakeInfo.Amount.Int, amount))
+	stakeInfo.Amount = models.NewBigInt(new(big.Int).Sub(&stakeInfo.Amount.Int, amount))
 	err = client.SaveStakeInfo(stakeInfo)
 	if err != nil {
 		return fmt.Errorf("SubStakeInfo, client.SaveStakeInfo error: %s", err)
@@ -156,7 +147,7 @@ func (client Client) SaveDoneTx(doneTx *models.DoneTx) error {
 }
 
 func (client Client) CleanDoneTx() error {
-	return client.db.Where(&models.DoneTx{}).Delete(&models.DoneTx{}).Error
+	return client.db.Where("1 = 1").Delete(&models.DoneTx{}).Error
 }
 
 func (client Client) LoadTotalGas(height uint64) (*models.TotalGas, error) {
@@ -170,11 +161,11 @@ func (client Client) SaveTotalGas(totalGas *models.TotalGas) error {
 }
 
 func (client Client) LoadAccumulateRewards(address string, height uint64) (*big.Int, error) {
-	r := make([]*models.BigInt, 0)
+	r := make([]models.BigInt, 0)
 	err := client.db.Select("amount").Where("address == ? AND height <= ", address, height).Find(&r).Error
 	var ar *big.Int
 	for _, v := range r {
-		ar = new(big.Int).Add(ar, v.Int)
+		ar = new(big.Int).Add(ar, &v.Int)
 	}
 	return ar, err
 }

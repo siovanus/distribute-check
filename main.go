@@ -53,7 +53,6 @@ func main() {
 		log.Errorf("store.ConnectToDb error: %s", err)
 		return
 	}
-	defer db.Close()
 
 	l := listener.New(conf, db)
 	err = l.Init()
@@ -66,10 +65,9 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	go l.Listen(ctx)
 	go restServer.Start()
 	go checkLogFile()
-
+	l.Listen(ctx)
 }
 
 func checkLogFile() {
