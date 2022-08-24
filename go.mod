@@ -60,6 +60,6 @@ require (
 )
 
 replace (
-	github.com/ethereum/go-ethereum v1.10.21 => /Users/zhangmenghang/Documents/gopath/src/github.com/polynetwork/Zion
+	github.com/ethereum/go-ethereum v1.10.21 => github.com/dylenfu/Zion v0.0.2-0.20220818040250-42593ee12de1
 	github.com/tendermint/tm-db/064 => github.com/tendermint/tm-db v0.6.4
 )
