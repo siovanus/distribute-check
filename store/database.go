@@ -32,8 +32,10 @@ func ConnectToDb(uri string) (*Client, error) {
 }
 
 func (client Client) LoadTrackHeight() (uint64, error) {
-	var trackHeight models.TrackHeight
-	err := client.db.Where(&models.TrackHeight{Name: "height", Height: 1}).FirstOrCreate(&trackHeight).Error
+	trackHeight := &models.TrackHeight{
+		Height: 1,
+	}
+	err := client.db.Where(&models.TrackHeight{Name: "height"}).FirstOrCreate(&trackHeight).Error
 	return trackHeight.Height, err
 }
 
@@ -169,15 +171,31 @@ func (client Client) SaveTotalGas(totalGas *models.TotalGas) error {
 }
 
 func (client Client) LoadAccumulateRewards(address string, height uint64) (*big.Int, error) {
-	r := make([]models.BigInt, 0)
-	err := client.db.Select("amount").Where("address == ? AND height <= ", address, height).Find(&r).Error
-	var ar *big.Int
+	r := make([]models.Rewards, 0)
+	err := client.db.Where("address = ? AND height <= ?", address, height).Find(&r).Error
+	ar := new(big.Int)
 	for _, v := range r {
-		ar = new(big.Int).Add(ar, &v.Int)
+		ar = new(big.Int).Add(ar, &v.Amount.Int)
 	}
 	return ar, err
 }
 
 func (client Client) SaveRewards(rewards *models.Rewards) error {
 	return client.db.Save(rewards).Error
+}
+
+func (client Client) LoadAccumulatedRewards() (*big.Int, error) {
+	accumulatedRewards := models.AccumulatedRewards{
+		Amount: models.NewBigInt(new(big.Int)),
+	}
+	err := client.db.Where(&models.AccumulatedRewards{Name: "accumulatedRewards"}).FirstOrCreate(&accumulatedRewards).Error
+	return &accumulatedRewards.Amount.Int, err
+}
+
+func (client Client) SaveAccumulatedRewards(amount *big.Int) error {
+	accumulatedRewards := &models.AccumulatedRewards{
+		Name:   "accumulatedRewards",
+		Amount: models.NewBigInt(amount),
+	}
+	return client.db.Save(accumulatedRewards).Error
 }

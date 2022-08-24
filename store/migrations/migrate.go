@@ -44,5 +44,10 @@ func Migrate(db *gorm.DB) error {
 		return errors.Wrap(err, "failed to auto migrate Rewards")
 	}
 
+	err = db.AutoMigrate(&models.AccumulatedRewards{})
+	if err != nil {
+		return errors.Wrap(err, "failed to auto migrate AccumulatedRewards")
+	}
+
 	return nil
 }

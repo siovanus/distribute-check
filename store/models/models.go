@@ -49,6 +49,11 @@ type Rewards struct {
 	Amount  *BigInt `gorm:"type:varchar(64)"`
 }
 
+type AccumulatedRewards struct {
+	Name   string  `gorm:"primary_key"`
+	Amount *BigInt `gorm:"type:varchar(64)"`
+}
+
 // SQLStringArray is a string array stored in the database as comma separated values.
 type SQLStringArray []string
 

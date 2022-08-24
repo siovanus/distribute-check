@@ -53,10 +53,10 @@ func InitRestServer(web Web, port uint64) ApiServer {
 
 //resigtry handler method
 func (this *restServer) registryRestServerAction(web Web) {
-	getMethodMap := map[string]Action{
+	postMethodMap := map[string]Action{
 		common.GETREWARDS: {name: common.ACTION_GETREWARDS, handler: web.GetRewards},
 	}
-	this.getMap = getMethodMap
+	this.postMap = postMethodMap
 }
 
 //start server

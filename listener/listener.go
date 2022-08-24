@@ -115,19 +115,12 @@ func (v *Listener) Listen(ctx context.Context) {
 					sleep()
 					continue
 				}
-				err = v.CalcRewards(trackHeight)
-				if err != nil {
-					log.Errorf("CalcRewards failed:%v", err)
-					sleep()
-					continue
-				}
 
 				trackHeight = trackHeight + 1
-			}
-
-			err = v.db.SaveTrackHeight(trackHeight)
-			if err != nil {
-				log.Errorf("v.db.SaveTrackHeight failed:%v", err)
+				err = v.db.SaveTrackHeight(trackHeight)
+				if err != nil {
+					log.Errorf("v.db.SaveTrackHeight failed:%v", err)
+				}
 			}
 
 		case <-ctx.Done():
@@ -171,6 +164,10 @@ func (v *Listener) ScanAndExecBlock(height uint64) error {
 		// accumulate gas
 		gas := new(big.Int).Mul(transaction.GasPrice(), new(big.Int).SetUint64(receipt.GasUsed))
 		totalGas = new(big.Int).Add(totalGas, gas)
+		err = v.db.SaveTotalGas(&models.TotalGas{Height: height, TotalGas: models.NewBigInt(totalGas)})
+		if err != nil {
+			return fmt.Errorf("ScanAndExecBlock, v.db.SaveTotalGas error: %s", err)
+		}
 
 		// if success
 		if receipt.Status == 0 {
@@ -253,6 +250,13 @@ func (v *Listener) ScanAndExecBlock(height uint64) error {
 			if err != nil {
 				return fmt.Errorf("ScanAndExecBlock, v.db.SubValidatorStake error: %s", err)
 			}
+
+		case node_manager_abi.MethodEndBlock:
+			err = v.CalcRewards(height)
+			if err != nil {
+				return fmt.Errorf("ScanAndExecBlock, v.CalcRewards error: %s", err)
+			}
+
 		case node_manager_abi.MethodChangeEpoch:
 			num, err := v.db.LoadValidatorNum()
 			if err != nil {
@@ -273,7 +277,6 @@ func (v *Listener) ScanAndExecBlock(height uint64) error {
 					validators = append(validators, v.Hex())
 				}
 			}
-
 			err = v.db.SaveEpochInfo(&models.EpochInfo{
 				ID:         ID,
 				Validators: validators,
@@ -288,20 +291,23 @@ func (v *Listener) ScanAndExecBlock(height uint64) error {
 			return fmt.Errorf("ScanAndExecBlock, v.db.SaveDoneTx %s error: %s", tx.Hash().Hex(), err)
 		}
 	}
-	err = v.db.SaveTotalGas(&models.TotalGas{Height: height, TotalGas: models.NewBigInt(totalGas)})
+	err = v.db.CleanDoneTx()
 	if err != nil {
-		return fmt.Errorf("ScanAndExecBlock, v.db.SaveTotalGas error: %s", err)
+		return fmt.Errorf("CalcReward, v.db.CleanDoneTx error: %s", err)
 	}
-
 	return nil
 }
 
 func (v *Listener) CalcRewards(height uint64) error {
+	accumulatedRewards, err := v.db.LoadAccumulatedRewards()
+	if err != nil {
+		return fmt.Errorf("CalcReward, v.db.LoadAccumulatedRewards error: %s", err)
+	}
 	totalGas, err := v.db.LoadTotalGas(height)
 	if err != nil {
 		return fmt.Errorf("CalcReward, v.db.LoadTotalGas error: %s", err)
 	}
-	totalRewards := new(big.Int).Add(&totalGas.TotalGas.Int, params.ZNT1)
+	totalRewards := new(big.Int).Add(new(big.Int).Add(&totalGas.TotalGas.Int, params.ZNT1), accumulatedRewards)
 	// get validators in this block
 	epochInfo, err := v.db.LoadLatestEpochInfo()
 	if err != nil {
@@ -309,7 +315,10 @@ func (v *Listener) CalcRewards(height uint64) error {
 	}
 	validatorList := epochInfo.Validators
 	if len(validatorList) == 0 {
-		// TODO: accumulate rewards
+		err = v.db.SaveAccumulatedRewards(totalRewards)
+		if err != nil {
+			return fmt.Errorf("CalcReward, v.db.SaveAccumulatedRewards error: %s", err)
+		}
 	} else {
 		validatorRewards := new(big.Int).Div(totalRewards, new(big.Int).SetUint64(uint64(len(validatorList))))
 		if err != nil {
@@ -343,10 +352,10 @@ func (v *Listener) CalcRewards(height uint64) error {
 				}
 			}
 		}
-	}
-	err = v.db.CleanDoneTx()
-	if err != nil {
-		return fmt.Errorf("CalcReward, v.db.CleanDoneTx error: %s", err)
+		err = v.db.SaveAccumulatedRewards(new(big.Int))
+		if err != nil {
+			return fmt.Errorf("CalcReward, v.db.SaveAccumulatedRewards error: %s", err)
+		}
 	}
 	return nil
 }
