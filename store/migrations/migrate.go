@@ -1,7 +1,7 @@
 package migrations
 
 import (
-	"github.com/pkg/errors"
+	"fmt"
 	"github.com/polynetwork/distribute-check/store/models"
 	"gorm.io/gorm"
 )
@@ -11,42 +11,42 @@ import (
 func Migrate(db *gorm.DB) error {
 	err := db.AutoMigrate(&models.TrackHeight{})
 	if err != nil {
-		return errors.Wrap(err, "failed to auto migrate TrackHeight")
+		return fmt.Errorf("failed to auto migrate TrackHeight: %s", err)
 	}
 
 	err = db.AutoMigrate(&models.Validator{})
 	if err != nil {
-		return errors.Wrap(err, "failed to auto migrate Validator")
+		return fmt.Errorf("failed to auto migrate Validator: %s", err)
 	}
 
 	err = db.AutoMigrate(&models.EpochInfo{})
 	if err != nil {
-		return errors.Wrap(err, "failed to auto migrate EpochInfo")
+		return fmt.Errorf("failed to auto migrate EpochInfo: %s", err)
 	}
 
 	err = db.AutoMigrate(&models.StakeInfo{})
 	if err != nil {
-		return errors.Wrap(err, "failed to auto migrate StakeInfo")
+		return fmt.Errorf("failed to auto migrate StakeInfo: %s", err)
 	}
 
 	err = db.AutoMigrate(&models.DoneTx{})
 	if err != nil {
-		return errors.Wrap(err, "failed to auto migrate DoneTx")
+		return fmt.Errorf("failed to auto migrate DoneTx: %s", err)
 	}
 
 	err = db.AutoMigrate(&models.TotalGas{})
 	if err != nil {
-		return errors.Wrap(err, "failed to auto migrate TotalGas")
+		return fmt.Errorf("failed to auto migrate TotalGas: %s", err)
 	}
 
 	err = db.AutoMigrate(&models.Rewards{})
 	if err != nil {
-		return errors.Wrap(err, "failed to auto migrate Rewards")
+		return fmt.Errorf("failed to auto migrate Rewards: %s", err)
 	}
 
 	err = db.AutoMigrate(&models.AccumulatedRewards{})
 	if err != nil {
-		return errors.Wrap(err, "failed to auto migrate AccumulatedRewards")
+		return fmt.Errorf("failed to auto migrate AccumulatedRewards: %s", err)
 	}
 
 	return nil

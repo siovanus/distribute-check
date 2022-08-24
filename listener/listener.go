@@ -29,7 +29,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/polynetwork/distribute-check/config"
 	"github.com/polynetwork/distribute-check/log"
 	"github.com/polynetwork/distribute-check/store"
 	"github.com/polynetwork/distribute-check/store/models"
@@ -42,20 +41,20 @@ import (
 var nmAbi abi.ABI
 
 type Listener struct {
-	conf     *config.Config
+	rpc      string
 	client   *ethclient.Client
 	db       *store.Client
 	contract *node_manager_abi.INodeManager
 	chainId  *big.Int
 }
 
-func New(conf *config.Config, db *store.Client) *Listener {
-	return &Listener{conf: conf, db: db}
+func New(rpc string, db *store.Client) *Listener {
+	return &Listener{rpc: rpc, db: db}
 }
 
 func (v *Listener) Init() (err error) {
 	nmAbi, err = abi.JSON(strings.NewReader(node_manager_abi.INodeManagerABI))
-	client, err := ethclient.Dial(v.conf.ZionConfig.RestURL)
+	client, err := ethclient.Dial(v.rpc)
 	if err != nil {
 		return fmt.Errorf("ethclient.Dial error: %s", err)
 	}
@@ -91,7 +90,7 @@ func (v *Listener) Listen(ctx context.Context) {
 	for {
 		select {
 		case <-ticker.C:
-			height, err := GetCurrentHeight(v.conf.ZionConfig.RestURL)
+			height, err := GetCurrentHeight(v.rpc)
 			if err != nil {
 				log.Errorf("GetCurrentHeight failed:%v", err)
 				continue

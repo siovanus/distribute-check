@@ -22,6 +22,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"github.com/polynetwork/distribute-check/http/restful"
 	"github.com/polynetwork/distribute-check/listener"
 	"github.com/polynetwork/distribute-check/log"
@@ -29,38 +30,35 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
-
-	"github.com/polynetwork/distribute-check/config"
 )
 
-var confFile string
+var zionRpc string
+var port uint64
+var caseNum uint64
 
 func init() {
-	flag.StringVar(&confFile, "conf", "./config.json", "configuration file path")
+	flag.StringVar(&zionRpc, "zion", "", "zion rpc endpoint")
+	flag.Uint64Var(&port, "port", 0, "server rest port")
+	flag.Uint64Var(&caseNum, "case", 0, "case number")
 	flag.Parse()
 }
 
 func main() {
 	log.InitLog(log.InfoLog, "./Log/", log.Stdout)
 
-	conf, err := config.LoadConfig(confFile)
-	if err != nil {
-		log.Fatalf("LoadConfig fail:%v", err)
-		return
-	}
-	db, err := store.ConnectToDb(conf.DatabaseURL)
+	db, err := store.ConnectToDb(fmt.Sprintf("postgresql://postgres:123456@localhost:5432/zion_%d?sslmode=disable", caseNum))
 	if err != nil {
 		log.Errorf("store.ConnectToDb error: %s", err)
 		return
 	}
 
-	l := listener.New(conf, db)
+	l := listener.New(zionRpc, db)
 	err = l.Init()
 	if err != nil {
 		log.Errorf("listener.Init error: %s", err)
 		return
 	}
-	restServer := restful.InitRestServer(l, conf.Port)
+	restServer := restful.InitRestServer(l, port)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
