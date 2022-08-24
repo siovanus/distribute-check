@@ -177,8 +177,11 @@ func (v *Listener) ScanAndExecBlock(height uint64) error {
 			continue
 		}
 		// if done
-		_, err = v.db.LoadDoneTx(tx.Hash().Hex())
+		doneTx, err := v.db.LoadDoneTx(tx.Hash().Hex())
 		if err != nil {
+			return fmt.Errorf("ScanAndExecBlock, v.db.LoadDoneTx error: %s", err)
+		}
+		if len(doneTx) != 0 {
 			continue
 		}
 
@@ -186,9 +189,14 @@ func (v *Listener) ScanAndExecBlock(height uint64) error {
 		switch methodName.Name {
 		case node_manager_abi.MethodCreateValidator:
 			param := new(node_manager.CreateValidatorParam)
-			err := nmAbi.UnpackIntoInterface(param, methodName.Name, data[4:])
+			method, _ := nmAbi.Methods[methodName.Name]
+			args, err := method.Inputs.Unpack(data[4:])
 			if err != nil {
-				return fmt.Errorf("ScanAndExecBlock, nmAbi.UnpackIntoInterface %s error: %s", methodName.Name, err)
+				return fmt.Errorf("ScanAndExecBlock，method.Inputs.Unpack error: %s", err)
+			}
+			err = method.Inputs.Copy(param, args)
+			if err != nil {
+				return fmt.Errorf("ScanAndExecBlock，method.Inputs.Copy error: %s", err)
 			}
 			validator := &models.Validator{
 				StakeAddress:     from.Hex(),
@@ -201,12 +209,21 @@ func (v *Listener) ScanAndExecBlock(height uint64) error {
 			if err != nil {
 				return fmt.Errorf("ScanAndExecBlock, v.db.SaveValidator %s error: %s", param.ConsensusAddress.Hex(), err)
 			}
+			err = v.db.AddStakeInfo(from.Hex(), param.ConsensusAddress.Hex(), param.InitStake)
+			if err != nil {
+				return fmt.Errorf("ScanAndExecBlock, v.db.AddStakeInfo error: %s", err)
+			}
 
 		case node_manager_abi.MethodStake:
 			param := new(node_manager.StakeParam)
-			err := nmAbi.UnpackIntoInterface(param, methodName.Name, data[4:])
+			method, _ := nmAbi.Methods[methodName.Name]
+			args, err := method.Inputs.Unpack(data[4:])
 			if err != nil {
-				return fmt.Errorf("ScanAndExecBlock, nmAbi.UnpackIntoInterface %s error: %s", methodName.Name, err)
+				return fmt.Errorf("ScanAndExecBlock，method.Inputs.Unpack error: %s", err)
+			}
+			err = method.Inputs.Copy(param, args)
+			if err != nil {
+				return fmt.Errorf("ScanAndExecBlock，method.Inputs.Copy error: %s", err)
 			}
 			err = v.db.AddStakeInfo(from.Hex(), param.ConsensusAddress.Hex(), param.Amount)
 			if err != nil {
@@ -219,9 +236,14 @@ func (v *Listener) ScanAndExecBlock(height uint64) error {
 
 		case node_manager_abi.MethodUnStake:
 			param := new(node_manager.UnStakeParam)
-			err := nmAbi.UnpackIntoInterface(param, methodName.Name, data[4:])
+			method, _ := nmAbi.Methods[methodName.Name]
+			args, err := method.Inputs.Unpack(data[4:])
 			if err != nil {
-				return fmt.Errorf("ScanAndExecBlock, nmAbi.UnpackIntoInterface %s error: %s", methodName.Name, err)
+				return fmt.Errorf("ScanAndExecBlock，method.Inputs.Unpack error: %s", err)
+			}
+			err = method.Inputs.Copy(param, args)
+			if err != nil {
+				return fmt.Errorf("ScanAndExecBlock，method.Inputs.Copy error: %s", err)
 			}
 			err = v.db.SubStakeInfo(from.Hex(), param.ConsensusAddress.Hex(), param.Amount)
 			if err != nil {
@@ -232,18 +254,24 @@ func (v *Listener) ScanAndExecBlock(height uint64) error {
 				return fmt.Errorf("ScanAndExecBlock, v.db.SubValidatorStake error: %s", err)
 			}
 		case node_manager_abi.MethodChangeEpoch:
+			num, err := v.db.LoadValidatorNum()
+			if err != nil {
+				return fmt.Errorf("ScanAndExecBlock, v.db.LoadValidatorNum error: %s", err)
+			}
 			latestEpochInfo, err := v.db.LoadLatestEpochInfo()
 			if err != nil {
 				return fmt.Errorf("ScanAndExecBlock, v.db.LoadLatestEpochInfo error: %s", err)
 			}
 			ID := latestEpochInfo.ID + 1
-			newEpochInfo, err := v.GetEpochInfo(new(big.Int).SetUint64(ID))
-			if err != nil {
-				return fmt.Errorf("ScanAndExecBlock, v.GetEpochInfo error: %s", err)
-			}
 			var validators models.SQLStringArray
-			for _, v := range newEpochInfo.Validators {
-				validators = append(validators, v.Hex())
+			if num >= 4 {
+				newEpochInfo, err := v.GetEpochInfo(new(big.Int).SetUint64(ID))
+				if err != nil {
+					return fmt.Errorf("ScanAndExecBlock, v.GetEpochInfo error: %s", err)
+				}
+				for _, v := range newEpochInfo.Validators {
+					validators = append(validators, v.Hex())
+				}
 			}
 
 			err = v.db.SaveEpochInfo(&models.EpochInfo{
@@ -259,10 +287,6 @@ func (v *Listener) ScanAndExecBlock(height uint64) error {
 		if err != nil {
 			return fmt.Errorf("ScanAndExecBlock, v.db.SaveDoneTx %s error: %s", tx.Hash().Hex(), err)
 		}
-	}
-	err = v.db.CleanDoneTx()
-	if err != nil {
-		return fmt.Errorf("ScanAndExecBlock, v.db.CleanDoneTx error: %s", err)
 	}
 	err = v.db.SaveTotalGas(&models.TotalGas{Height: height, TotalGas: models.NewBigInt(totalGas)})
 	if err != nil {
@@ -284,37 +308,45 @@ func (v *Listener) CalcRewards(height uint64) error {
 		return fmt.Errorf("CalcReward, v.db.LoadLatestEpochInfo error: %s", err)
 	}
 	validatorList := epochInfo.Validators
-	validatorRewards := new(big.Int).Div(totalRewards, new(big.Int).SetUint64(uint64(len(validatorList))))
-	if err != nil {
-		return fmt.Errorf("CalcReward, Div validatorRewards error: %v", err)
+	if len(validatorList) == 0 {
+		// TODO: accumulate rewards
+	} else {
+		validatorRewards := new(big.Int).Div(totalRewards, new(big.Int).SetUint64(uint64(len(validatorList))))
+		if err != nil {
+			return fmt.Errorf("CalcReward, Div validatorRewards error: %v", err)
+		}
+		for _, consensusAddress := range validatorList {
+			// get validator
+			validator, err := v.db.LoadValidator(consensusAddress)
+			if err != nil {
+				return fmt.Errorf("CalcReward, v.db.LoadValidator error: %v", err)
+			}
+			commission := new(big.Int).Div(new(big.Int).Mul(validatorRewards, &validator.Commission.Int), node_manager.PercentDecimal)
+			stakeRewards := new(big.Int).Sub(validatorRewards, commission)
+			rewardsPerToken := new(big.Int).Div(new(big.Int).Mul(stakeRewards, node_manager.TokenDecimal), &validator.TotalStake.Int)
+			allStakeAddress, err := v.db.LoadAllStakeAddress(consensusAddress)
+			if err != nil {
+				return fmt.Errorf("CalcReward, v.db.LoadAllStakeAddress error: %v", err)
+			}
+			for _, s := range allStakeAddress {
+				stakeInfo, err := v.db.LoadStakeInfo(s, consensusAddress)
+				if err != nil {
+					return fmt.Errorf("CalcReward, v.db.LoadStakeInfo error: %v", err)
+				}
+				rewards := new(big.Int).Div(new(big.Int).Mul(&stakeInfo.Amount.Int, rewardsPerToken), node_manager.TokenDecimal)
+				if s == validator.StakeAddress {
+					rewards = new(big.Int).Add(rewards, commission)
+				}
+				err = v.db.SaveRewards(&models.Rewards{Address: s, Height: height, Amount: models.NewBigInt(rewards)})
+				if err != nil {
+					return fmt.Errorf("CalcReward, v.db.SaveRewards error: %v", err)
+				}
+			}
+		}
 	}
-	for _, consensusAddress := range validatorList {
-		// get validator
-		validator, err := v.db.LoadValidator(consensusAddress)
-		if err != nil {
-			return fmt.Errorf("CalcReward, v.db.LoadValidator error: %v", err)
-		}
-		commission := new(big.Int).Div(new(big.Int).Mul(validatorRewards, &validator.Commission.Int), node_manager.PercentDecimal)
-		stakeRewards := new(big.Int).Sub(validatorRewards, commission)
-		rewardsPerToken := new(big.Int).Div(new(big.Int).Mul(stakeRewards, node_manager.TokenDecimal), &validator.TotalStake.Int)
-		allStakeAddress, err := v.db.LoadAllStakeAddress(consensusAddress)
-		if err != nil {
-			return fmt.Errorf("CalcReward, v.db.LoadAllStakeAddress error: %v", err)
-		}
-		for _, s := range allStakeAddress {
-			stakeInfo, err := v.db.LoadStakeInfo(s, consensusAddress)
-			if err != nil {
-				return fmt.Errorf("CalcReward, v.db.LoadStakeInfo error: %v", err)
-			}
-			rewards := new(big.Int).Div(new(big.Int).Mul(&stakeInfo.Amount.Int, rewardsPerToken), node_manager.TokenDecimal)
-			if s == validator.StakeAddress {
-				rewards = new(big.Int).Add(rewards, commission)
-			}
-			err = v.db.SaveRewards(&models.Rewards{Address: s, Height: height, Amount: models.NewBigInt(rewards)})
-			if err != nil {
-				return fmt.Errorf("CalcReward, v.db.SaveRewards error: %v", err)
-			}
-		}
+	err = v.db.CleanDoneTx()
+	if err != nil {
+		return fmt.Errorf("CalcReward, v.db.CleanDoneTx error: %s", err)
 	}
 	return nil
 }

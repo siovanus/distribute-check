@@ -26,14 +26,14 @@ func ConnectToDb(uri string) (*Client, error) {
 		return nil, fmt.Errorf("newDBStore#Migrate: %s", err)
 	}
 	store := &Client{
-		db: db.Set("gorm:auto_preload", true),
+		db: db,
 	}
 	return store, nil
 }
 
 func (client Client) LoadTrackHeight() (uint64, error) {
 	var trackHeight models.TrackHeight
-	err := client.db.Where(&models.TrackHeight{Name: "height"}).FirstOrCreate(&trackHeight).Error
+	err := client.db.Where(&models.TrackHeight{Name: "height", Height: 1}).FirstOrCreate(&trackHeight).Error
 	return trackHeight.Height, err
 }
 
@@ -49,6 +49,12 @@ func (client Client) LoadValidator(consensusAddress string) (*models.Validator, 
 	validator := new(models.Validator)
 	err := client.db.Where(&models.Validator{ConsensusAddress: consensusAddress}).First(validator).Error
 	return validator, err
+}
+
+func (client Client) LoadValidatorNum() (uint64, error) {
+	var num uint64
+	err := client.db.Raw("SELECT COUNT(*) FROM validators").Scan(&num).Error
+	return num, err
 }
 
 func (client Client) SaveValidator(validator *models.Validator) error {
@@ -95,14 +101,16 @@ func (client Client) SaveEpochInfo(epochInfo *models.EpochInfo) error {
 }
 
 func (client Client) LoadStakeInfo(stakeAddress, consensusAddr string) (*models.StakeInfo, error) {
-	stakeInfo := new(models.StakeInfo)
-	err := client.db.Where(&models.StakeInfo{StakeAddress: stakeAddress, ConsensusAddr: consensusAddr}).FirstOrCreate(stakeInfo).Error
+	stakeInfo := &models.StakeInfo{
+		Amount: models.NewBigInt(new(big.Int)),
+	}
+	err := client.db.Where(&models.StakeInfo{StakeAddress: stakeAddress, ConsensusAddress: consensusAddr}).FirstOrCreate(stakeInfo).Error
 	return stakeInfo, err
 }
 
 func (client Client) LoadAllStakeAddress(consensusAddr string) ([]string, error) {
 	r := make([]string, 0)
-	err := client.db.Select("stake_address").Where("consensus_address == ?", consensusAddr).Find(&r).Error
+	err := client.db.Model(&models.StakeInfo{}).Select("stake_address").Where("consensus_address = ?", consensusAddr).Find(&r).Error
 	return r, err
 }
 
@@ -136,9 +144,9 @@ func (client Client) SubStakeInfo(stakeAddress, consensusAddress string, amount 
 	return nil
 }
 
-func (client Client) LoadDoneTx(hash string) (*models.DoneTx, error) {
-	doneTx := new(models.DoneTx)
-	err := client.db.Where(&models.DoneTx{Hash: hash}).First(doneTx).Error
+func (client Client) LoadDoneTx(hash string) ([]models.DoneTx, error) {
+	doneTx := make([]models.DoneTx, 0)
+	err := client.db.Where(&models.DoneTx{Hash: hash}).Find(&doneTx).Error
 	return doneTx, err
 }
 

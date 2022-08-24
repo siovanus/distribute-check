@@ -5,6 +5,7 @@ import (
 	"database/sql/driver"
 	"encoding/csv"
 	"fmt"
+	"io"
 	"math/big"
 )
 
@@ -20,16 +21,16 @@ type EpochInfo struct {
 
 type Validator struct {
 	StakeAddress     string
-	ConsensusAddress string `gorm:"primary_key"`
+	ConsensusAddress string  `gorm:"primary_key"`
 	Commission       *BigInt `gorm:"type:varchar(64)"`
 	TotalStake       *BigInt `gorm:"type:varchar(64)"`
 	SelfStake        *BigInt `gorm:"type:varchar(64)"`
 }
 
 type StakeInfo struct {
-	StakeAddress  string `gorm:"primary_key"`
-	ConsensusAddr string `gorm:"primary_key"`
-	Amount        *BigInt `gorm:"type:varchar(64)"`
+	StakeAddress     string  `gorm:"primary_key"`
+	ConsensusAddress string  `gorm:"primary_key"`
+	Amount           *BigInt `gorm:"type:varchar(64)"`
 }
 
 type DoneTx struct {
@@ -38,13 +39,13 @@ type DoneTx struct {
 }
 
 type TotalGas struct {
-	Height   uint64 `gorm:"primary_key"`
+	Height   uint64  `gorm:"primary_key"`
 	TotalGas *BigInt `gorm:"type:varchar(64)"`
 }
 
 type Rewards struct {
-	Address string `gorm:"primary_key"`
-	Height  uint64 `gorm:"primary_key"`
+	Address string  `gorm:"primary_key"`
+	Height  uint64  `gorm:"primary_key"`
 	Amount  *BigInt `gorm:"type:varchar(64)"`
 }
 
@@ -68,7 +69,7 @@ func (arr *SQLStringArray) Scan(src interface{}) error {
 	buf := bytes.NewBufferString(str)
 	r := csv.NewReader(buf)
 	ret, err := r.Read()
-	if err != nil {
+	if err != nil && err != io.EOF {
 		return fmt.Errorf("badly formatted csv string array: %s", err)
 	}
 	*arr = ret
@@ -103,17 +104,16 @@ func (bigInt *BigInt) Value() (driver.Value, error) {
 }
 
 func (bigInt *BigInt) Scan(v interface{}) error {
-	value, ok := v.([]byte)
+	str, ok := v.(string)
 	if !ok {
-		return fmt.Errorf("type error, %v", v)
+		return fmt.Errorf("type error, not string")
 	}
-	str := string(value)
 	if str == "null" || str == "nil" || str == "<nil>" || str == "" {
 		return nil
 	}
 	data, ok := new(big.Int).SetString(str, 10)
 	if !ok {
-		return fmt.Errorf("not a valid big integer: %s", value)
+		return fmt.Errorf("not a valid big integer: %s", str)
 	}
 	bigInt.Int = *data
 	return nil
