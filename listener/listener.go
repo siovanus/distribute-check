@@ -162,6 +162,10 @@ func (v *Listener) ScanAndExecBlock(height uint64) error {
 		}
 		// accumulate gas
 		gas := new(big.Int).Mul(transaction.GasPrice(), new(big.Int).SetUint64(receipt.GasUsed))
+		err = v.db.SaveGasFee(&models.GasFee{Address: from.Hex(), Height: height, GasFee: models.NewBigInt(gas)})
+		if err != nil {
+			return fmt.Errorf("ScanAndExecBlock, v.db.SaveGasFee error: %s", err)
+		}
 		totalGas = new(big.Int).Add(totalGas, gas)
 		err = v.db.SaveTotalGas(&models.TotalGas{Height: height, TotalGas: models.NewBigInt(totalGas)})
 		if err != nil {

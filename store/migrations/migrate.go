@@ -39,6 +39,11 @@ func Migrate(db *gorm.DB) error {
 		return fmt.Errorf("failed to auto migrate TotalGas: %s", err)
 	}
 
+	err = db.AutoMigrate(&models.GasFee{})
+	if err != nil {
+		return fmt.Errorf("failed to auto migrate GasFee: %s", err)
+	}
+
 	err = db.AutoMigrate(&models.Rewards{})
 	if err != nil {
 		return fmt.Errorf("failed to auto migrate Rewards: %s", err)

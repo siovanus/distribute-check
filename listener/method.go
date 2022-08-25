@@ -45,3 +45,15 @@ func (v *Listener) getRewards(addresses []string, endHeight uint64) ([]string, e
 	}
 	return r, nil
 }
+
+func (v *Listener) getGasFee(addresses []string, endHeight uint64) ([]string, error) {
+	r := make([]string, 0, len(addresses))
+	for _, addr := range addresses {
+		ar, err := v.db.LoadAccumulateGasFee(addr, endHeight)
+		if err != nil {
+			return nil, fmt.Errorf("getGasFee, v.db.LoadAccumulateGasFee error: %s", err)
+		}
+		r = append(r, ar.String())
+	}
+	return r, nil
+}

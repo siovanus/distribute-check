@@ -170,6 +170,20 @@ func (client Client) SaveTotalGas(totalGas *models.TotalGas) error {
 	return client.db.Save(totalGas).Error
 }
 
+func (client Client) LoadAccumulateGasFee(address string, height uint64) (*big.Int, error) {
+	r := make([]models.GasFee, 0)
+	err := client.db.Where("address = ? AND height <= ?", address, height).Find(&r).Error
+	agf := new(big.Int)
+	for _, v := range r {
+		agf = new(big.Int).Add(agf, &v.GasFee.Int)
+	}
+	return agf, err
+}
+
+func (client Client) SaveGasFee(gasFee *models.GasFee) error {
+	return client.db.Save(gasFee).Error
+}
+
 func (client Client) LoadAccumulateRewards(address string, height uint64) (*big.Int, error) {
 	r := make([]models.Rewards, 0)
 	err := client.db.Where("address = ? AND height <= ?", address, height).Find(&r).Error
