@@ -77,6 +77,12 @@ func (v *Listener) Init() (err error) {
 		return fmt.Errorf("v.db.SaveEpochInfo error: %s", err)
 	}
 
+	// init community rate
+	err = v.db.SaveCommunityRate(new(big.Int).SetUint64(2000))
+	if err != nil {
+		return fmt.Errorf("v.db.SaveCommunityRate error: %s", err)
+	}
+
 	return nil
 }
 
@@ -310,7 +316,12 @@ func (v *Listener) CalcRewards(height uint64) error {
 	if err != nil {
 		return fmt.Errorf("CalcReward, v.db.LoadTotalGas error: %s", err)
 	}
-	totalRewards := new(big.Int).Add(new(big.Int).Add(&totalGas.TotalGas.Int, params.ZNT1), accumulatedRewards)
+	communityRate, err := v.db.LoadCommunityRate()
+	if err != nil {
+		return fmt.Errorf("CalcReward, v.db.LoadCommunityRate error: %s", err)
+	}
+	rewards := new(big.Int).Div(new(big.Int).Mul(params.ZNT1, communityRate), node_manager.PercentDecimal)
+	totalRewards := new(big.Int).Add(new(big.Int).Add(&totalGas.TotalGas.Int, rewards), accumulatedRewards)
 	// get validators in this block
 	epochInfo, err := v.db.LoadLatestEpochInfo()
 	if err != nil {

@@ -54,5 +54,10 @@ func Migrate(db *gorm.DB) error {
 		return fmt.Errorf("failed to auto migrate AccumulatedRewards: %s", err)
 	}
 
+	err = db.AutoMigrate(&models.CommunityRate{})
+	if err != nil {
+		return fmt.Errorf("failed to auto migrate CommunityRate: %s", err)
+	}
+
 	return nil
 }

@@ -213,3 +213,17 @@ func (client Client) SaveAccumulatedRewards(amount *big.Int) error {
 	}
 	return client.db.Save(accumulatedRewards).Error
 }
+
+func (client Client) LoadCommunityRate() (*big.Int, error) {
+	communityRate := new(models.CommunityRate)
+	err := client.db.Where(&models.CommunityRate{Name: "communityRate"}).First(communityRate).Error
+	return &communityRate.Amount.Int, err
+}
+
+func (client Client) SaveCommunityRate(amount *big.Int) error {
+	communityRate := &models.CommunityRate{
+		Name:   "communityRate",
+		Amount: models.NewBigInt(amount),
+	}
+	return client.db.Save(communityRate).Error
+}
