@@ -320,7 +320,7 @@ func (v *Listener) CalcRewards(height uint64) error {
 	if err != nil {
 		return fmt.Errorf("CalcReward, v.db.LoadCommunityRate error: %s", err)
 	}
-	rewards := new(big.Int).Div(new(big.Int).Mul(params.ZNT1, communityRate), node_manager.PercentDecimal)
+	rewards := new(big.Int).Sub(params.ZNT1, new(big.Int).Div(new(big.Int).Mul(params.ZNT1, communityRate), node_manager.PercentDecimal))
 	totalRewards := new(big.Int).Add(new(big.Int).Add(&totalGas.TotalGas.Int, rewards), accumulatedRewards)
 	// get validators in this block
 	epochInfo, err := v.db.LoadLatestEpochInfo()
