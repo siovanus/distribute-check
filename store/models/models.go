@@ -44,8 +44,9 @@ type TotalGas struct {
 }
 
 type GasFee struct {
-	Address string  `gorm:"primary_key"`
-	Height  uint64  `gorm:"primary_key"`
+	ID      uint64 `gorm:"primary_key"`
+	Address string
+	Height  uint64
 	GasFee  *BigInt `gorm:"type:varchar(64)"`
 }
 
