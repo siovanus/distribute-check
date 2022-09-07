@@ -357,6 +357,11 @@ func (v *Listener) CalcRewards(height uint64) error {
 					return fmt.Errorf("CalcReward, v.db.LoadStakeInfo error: %v", err)
 				}
 				rewards := new(big.Int).Div(new(big.Int).Mul(&stakeInfo.Amount.Int, rewardsPerToken), node_manager.TokenDecimal)
+				oldRewards, err := v.db.LoadRewards(s, height)
+				if err != nil {
+					return fmt.Errorf("CalcReward, v.db.LoadRewards error: %v", err)
+				}
+				rewards = new(big.Int).Add(oldRewards, rewards)
 				if s == validator.StakeAddress {
 					rewards = new(big.Int).Add(rewards, commission)
 				}

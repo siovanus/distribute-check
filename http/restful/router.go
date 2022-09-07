@@ -10,7 +10,7 @@ import (
 
 type paramsMap map[string]string
 
-//http router
+// http router
 type Route struct {
 	Method  string
 	Path    *regexp.Regexp

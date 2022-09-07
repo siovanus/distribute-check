@@ -339,7 +339,7 @@ func FileOpen(path string) (*os.File, error) {
 	return logfile, nil
 }
 
-//Init deprecated, use InitLog instead
+// Init deprecated, use InitLog instead
 func Init(a ...interface{}) {
 	os.Stderr.WriteString("warning: use of deprecated Init. Use InitLog instead\n")
 	InitLog(InfoLog, a...)

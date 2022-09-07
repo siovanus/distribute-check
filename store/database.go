@@ -198,6 +198,16 @@ func (client Client) SaveRewards(rewards *models.Rewards) error {
 	return client.db.Save(rewards).Error
 }
 
+func (client Client) LoadRewards(address string, height uint64) (*big.Int, error) {
+	rewards := &models.Rewards{
+		Address: address,
+		Height:  height,
+		Amount:  models.NewBigInt(new(big.Int)),
+	}
+	err := client.db.Where(&models.Rewards{Address: address, Height: height}).FirstOrCreate(rewards).Error
+	return &rewards.Amount.Int, err
+}
+
 func (client Client) LoadAccumulatedRewards() (*big.Int, error) {
 	accumulatedRewards := models.AccumulatedRewards{
 		Amount: models.NewBigInt(new(big.Int)),

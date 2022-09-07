@@ -36,7 +36,7 @@ type restServer struct {
 	getMap   map[string]Action //get method map
 }
 
-//init restful server
+// init restful server
 func InitRestServer(web Web, port uint64) ApiServer {
 	rt := &restServer{
 		port: port,
@@ -51,7 +51,7 @@ func InitRestServer(web Web, port uint64) ApiServer {
 	return rt
 }
 
-//resigtry handler method
+// resigtry handler method
 func (this *restServer) registryRestServerAction(web Web) {
 	postMethodMap := map[string]Action{
 		common.GETREWARDS: {name: common.ACTION_GETREWARDS, handler: web.GetRewards},
@@ -60,7 +60,7 @@ func (this *restServer) registryRestServerAction(web Web) {
 	this.postMap = postMethodMap
 }
 
-//start server
+// start server
 func (this *restServer) Start() error {
 	retPort := this.port
 	if retPort == 0 {
@@ -99,7 +99,7 @@ func (this *restServer) getUrlParams(r *http.Request) map[string]interface{} {
 	return params
 }
 
-//init get Handler
+// init get Handler
 func (this *restServer) initGetHandler() {
 	for k := range this.getMap {
 		this.router.Get(k, func(w http.ResponseWriter, r *http.Request) {
@@ -118,7 +118,7 @@ func (this *restServer) initGetHandler() {
 	}
 }
 
-//init post Handler
+// init post Handler
 func (this *restServer) initPostHandler() {
 	for k := range this.postMap {
 		this.router.Post(k, func(w http.ResponseWriter, r *http.Request) {
@@ -160,7 +160,7 @@ func (this *restServer) write(w http.ResponseWriter, data []byte) {
 	w.Write(data)
 }
 
-//response
+// response
 func (this *restServer) response(w http.ResponseWriter, resp map[string]interface{}) {
 	resp["desc"] = ErrMap[resp["error"].(uint32)]
 	data, err := json.Marshal(resp)
@@ -171,7 +171,7 @@ func (this *restServer) response(w http.ResponseWriter, resp map[string]interfac
 	this.write(w, data)
 }
 
-//stop restful server
+// stop restful server
 func (this *restServer) Stop() {
 	if this.server != nil {
 		this.server.Shutdown(context.Background())
@@ -179,7 +179,7 @@ func (this *restServer) Stop() {
 	}
 }
 
-//restart server
+// restart server
 func (this *restServer) Restart(cmd map[string]interface{}) map[string]interface{} {
 	go func() {
 		time.Sleep(time.Second)
