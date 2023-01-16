@@ -208,14 +208,14 @@ func (v *Listener) ScanAndExecBlock(height uint64) error {
 				StakeAddress:     from.Hex(),
 				ConsensusAddress: param.ConsensusAddress.Hex(),
 				Commission:       models.NewBigInt(param.Commission),
-				TotalStake:       models.NewBigInt(param.InitStake),
-				SelfStake:        models.NewBigInt(param.InitStake),
+				TotalStake:       models.NewBigInt(transaction.Value()),
+				SelfStake:        models.NewBigInt(transaction.Value()),
 			}
 			err = v.db.SaveValidator(validator)
 			if err != nil {
 				return fmt.Errorf("ScanAndExecBlock, v.db.SaveValidator %s error: %s", param.ConsensusAddress.Hex(), err)
 			}
-			err = v.db.AddStakeInfo(from.Hex(), param.ConsensusAddress.Hex(), param.InitStake)
+			err = v.db.AddStakeInfo(from.Hex(), param.ConsensusAddress.Hex(), transaction.Value())
 			if err != nil {
 				return fmt.Errorf("ScanAndExecBlock, v.db.AddStakeInfo error: %s", err)
 			}
@@ -231,11 +231,11 @@ func (v *Listener) ScanAndExecBlock(height uint64) error {
 			if err != nil {
 				return fmt.Errorf("ScanAndExecBlock，method.Inputs.Copy error: %s", err)
 			}
-			err = v.db.AddStakeInfo(from.Hex(), param.ConsensusAddress.Hex(), param.Amount)
+			err = v.db.AddStakeInfo(from.Hex(), param.ConsensusAddress.Hex(), transaction.Value())
 			if err != nil {
 				return fmt.Errorf("ScanAndExecBlock, v.db.AddStakeInfo error: %s", err)
 			}
-			err = v.db.AddValidatorStake(from.Hex(), param.ConsensusAddress.Hex(), param.Amount)
+			err = v.db.AddValidatorStake(from.Hex(), param.ConsensusAddress.Hex(), transaction.Value())
 			if err != nil {
 				return fmt.Errorf("ScanAndExecBlock, v.db.AddValidatorStake error: %s", err)
 			}
