@@ -150,7 +150,8 @@ func (v *Listener) ScanAndExecBlock(height uint64) error {
 		data := tx.Data()
 		methodName, err := nmAbi.MethodById(tx.Data())
 		if err != nil {
-			return fmt.Errorf("ScanAndExecBlock, nmAbi.MethodById error: %s", err)
+			log.Infof("ScanAndExecBlock, nmAbi.MethodById not found: %s", err)
+			continue
 		}
 		from, err := types.Sender(types.LatestSignerForChainID(v.chainId), tx)
 		if err != nil {
